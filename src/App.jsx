@@ -9,6 +9,7 @@ function App() {
   const [chat, setChat] = useState([]);
   const [listening, setListening] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef(null);
 
@@ -51,13 +52,16 @@ function App() {
   };
 
   // ---------------- CHAT ----------------
-  const sendMessage = async () => {
-    if (!message.trim()) return;
+const sendMessage = async () => {
+  if (!message.trim() || loading) return;
 
-    const newChat = [...chat, { role: "user", content: message }];
-    setChat(newChat);
-    setMessage("");
+  setLoading(true);
 
+  const newChat = [...chat, { role: "user", content: message }];
+  setChat(newChat);
+  setMessage("");
+
+  try {
     const res = await fetch(`${API_BASE}/chat`, {
       method: "POST",
       headers: {
@@ -71,7 +75,7 @@ function App() {
     });
 
     if (res.status === 401) {
-      alert("Session expired.");
+      alert("Session expired. Please login again.");
       logout();
       return;
     }
@@ -86,7 +90,13 @@ function App() {
     setChat(updatedChat);
 
     speak(data.reply);
-  };
+
+  } catch (err) {
+    alert("Network error. Please try again.");
+  }
+
+  setLoading(false);
+};
 
   // ---------------- SPEECH TO TEXT ----------------
   const startListening = () => {
@@ -120,41 +130,84 @@ function App() {
   }, [chat]);
 
   // ---------------- LOGIN SCREEN ----------------
-  if (!token) {
-    return (
-      <div style={{ maxWidth: "400px", margin: "100px auto", textAlign: "center" }}>
-        <h2>Parent Login</h2>
+// ---------------- LOGIN SCREEN ----------------
+if (!token) {
+  return (
+    <div
+      style={{
+        maxWidth: "420px",
+        margin: "120px auto",
+        padding: "30px",
+        textAlign: "center",
+        border: "1px solid #ddd",
+        borderRadius: "14px",
+        backgroundColor: "#ffffff",
+        boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <h1 style={{ fontSize: "30px", marginBottom: "10px" }}>
+        English Practice
+      </h1>
 
-        <input
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
-        />
+      <p style={{ fontSize: "16px", color: "#555", marginBottom: "30px" }}>
+        Login to start practicing English
+      </p>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{ width: "100%", padding: "10px", marginBottom: "10px" }}
-        />
+      <input
+        autoFocus
+        placeholder="Username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "14px",
+          fontSize: "16px",
+          marginBottom: "15px",
+          borderRadius: "8px",
+          border: "1px solid #ccc",
+        }}
+      />
 
-        <button
-          onClick={handleLogin}
-          style={{
-            width: "100%",
-            padding: "10px",
-            backgroundColor: "#007bff",
-            color: "white",
-            border: "none",
-          }}
-        >
-          Login
-        </button>
-      </div>
-    );
-  }
+      <input
+        autoFocus
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "14px",
+          fontSize: "16px",
+          marginBottom: "25px",
+          borderRadius: "8px",
+          border: "1px solid #ccc",
+        }}
+      />
+
+      <button
+        onClick={handleLogin}
+        style={{
+          width: "100%",
+          padding: "16px",
+          fontSize: "18px",
+          fontWeight: "bold",
+          backgroundColor: "#2563eb",
+          color: "white",
+          border: "none",
+          borderRadius: "10px",
+          cursor: "pointer",
+        }}
+      >
+        Login
+      </button>
+
+      <p style={{ marginTop: "25px", fontSize: "13px", color: "#777" }}>
+        Speak or type English after login
+      </p>
+    </div>
+  );
+}
 
   // ---------------- CHAT UI ----------------
   return (
@@ -202,6 +255,9 @@ function App() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type or use mic..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter") sendMessage();
+          }}
         />
 
         <button
@@ -220,8 +276,9 @@ function App() {
         <button
           style={{ marginLeft: "10px", padding: "10px" }}
           onClick={sendMessage}
+          disabled={loading}
         >
-          Send
+          {loading ? "Thinking..." : "Send"}
         </button>
       </div>
     </div>
