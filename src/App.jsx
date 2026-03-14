@@ -47,6 +47,10 @@ function App() {
     utterance.lang = "en-US";
     utterance.rate = 0.9;
 
+    utterance.onend = () => {
+      startListening();
+    };
+
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };
@@ -129,89 +133,113 @@ const sendMessage = async () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
 
-  // ---------------- LOGIN SCREEN ----------------
 // ---------------- LOGIN SCREEN ----------------
 if (!token) {
   return (
     <div
       style={{
-        maxWidth: "420px",
-        margin: "120px auto",
-        padding: "30px",
-        textAlign: "center",
-        border: "1px solid #ddd",
-        borderRadius: "14px",
-        backgroundColor: "#ffffff",
-        boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#111",
         fontFamily: "Arial, sans-serif",
       }}
     >
-      <h1 style={{ fontSize: "30px", marginBottom: "10px" }}>
-        English Practice
-      </h1>
-
-      <p style={{ fontSize: "16px", color: "#555", marginBottom: "30px" }}>
-        Login to start practicing English
-      </p>
-
-      <input
-        autoFocus
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
+      <div
         style={{
-          width: "100%",
-          padding: "14px",
-          fontSize: "16px",
-          marginBottom: "15px",
-          borderRadius: "8px",
-          border: "1px solid #ccc",
-        }}
-      />
-
-      <input
-        autoFocus
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "14px",
-          fontSize: "16px",
-          marginBottom: "25px",
-          borderRadius: "8px",
-          border: "1px solid #ccc",
-        }}
-      />
-
-      <button
-        onClick={handleLogin}
-        style={{
-          width: "100%",
-          padding: "16px",
-          fontSize: "18px",
-          fontWeight: "bold",
-          backgroundColor: "#2563eb",
-          color: "white",
-          border: "none",
-          borderRadius: "10px",
-          cursor: "pointer",
+          width: "420px",
+          padding: "40px",
+          borderRadius: "16px",
+          backgroundColor: "#1e1e1e",
+          textAlign: "center",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
         }}
       >
-        Login
-      </button>
+        <h1
+          style={{
+            fontSize: "34px",
+            color: "#ffffff",
+            marginBottom: "18px",
+          }}
+        >
+          English Practice
+        </h1>
 
-      <p style={{ marginTop: "25px", fontSize: "13px", color: "#777" }}>
-        Speak or type English after login
-      </p>
+        <p
+          style={{
+            fontSize: "20px",
+            color: "#dddddd",
+            marginBottom: "35px",
+          }}
+        >
+          Login to start practicing English
+        </p>
+
+        <input
+          autoFocus
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "16px",
+            fontSize: "18px",
+            fontWeight: "600",
+            marginBottom: "18px",
+            borderRadius: "10px",
+            border: "1px solid #444",
+            backgroundColor: "#2a2a2a",
+            color: "white",
+          }}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleLogin();
+          }}
+          style={{
+            width: "100%",
+            padding: "16px",
+            fontSize: "18px",
+            fontWeight: "600",
+            marginBottom: "30px",
+            borderRadius: "10px",
+            border: "1px solid #444",
+            backgroundColor: "#2a2a2a",
+            color: "white",
+          }}
+        />
+
+        <button
+          onClick={handleLogin}
+          style={{
+            width: "100%",
+            padding: "18px",
+            fontSize: "20px",
+            fontWeight: "bold",
+            backgroundColor: "#2563eb",
+            color: "white",
+            border: "none",
+            borderRadius: "12px",
+            cursor: "pointer",
+          }}
+        >
+          Login
+        </button>
+      </div>
     </div>
   );
 }
 
+
   // ---------------- CHAT UI ----------------
   return (
-    <div style={{ maxWidth: "700px", margin: "40px auto", padding: "20px" }}>
+    <div style={{ maxWidth: "680px", width: "95%", margin: "40px auto", padding: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h2>English Practice</h2>
         <button onClick={logout}>Logout</button>
@@ -234,18 +262,42 @@ if (!token) {
           border: "1px solid #ddd",
           borderRadius: "12px",
           padding: "20px",
-          height: "400px",
+          height: "500px",
+          fontSize: "18px",
           overflowY: "auto",
           marginBottom: "15px",
           backgroundColor: "#f9f9f9",
         }}
       >
-        {chat.map((msg, index) => (
-          <div key={index} style={{ marginBottom: "10px" }}>
-            <strong>{msg.role === "user" ? "You" : "Assistant"}:</strong>{" "}
-            {msg.content}
-          </div>
-        ))}
+        {chat.map((msg, index) => {
+          const isUser = msg.role === "user";
+
+          return (
+            <div
+              key={index}
+              style={{
+                display: "flex",
+                justifyContent: isUser ? "flex-end" : "flex-start",
+                marginBottom: "10px",
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: "75%",
+                  padding: "14px 18px",
+                  borderRadius: "18px",
+                  fontSize: "18px",
+                  lineHeight: "1.4",
+                  backgroundColor: isUser ? "#2563eb" : "#e5e5ea",
+                  color: isUser ? "white" : "black",
+                }}
+              >
+                {msg.content}
+              </div>
+            </div>
+          );
+        })}
+
         <div ref={chatEndRef} />
       </div>
 
