@@ -10,6 +10,7 @@ function App() {
   const [listening, setListening] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const [showPersian, setShowPersian] = useState(true);
+  const [correctMe, setCorrectMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef(null);
@@ -75,7 +76,8 @@ const sendMessage = async () => {
       },
       body: JSON.stringify({
         message: message,
-        history: newChat,
+        history: newChat, 
+        correct: correctMe,
         persian: showPersian
       }),
     });
@@ -95,7 +97,8 @@ const sendMessage = async () => {
 
     setChat(updatedChat);
 
-    speak(data.reply);
+    const englishOnly = data.reply.split("\n")[0];
+    speak(englishOnly);
 
   } catch (err) {
     alert("Network error. Please try again.");
@@ -134,6 +137,18 @@ const sendMessage = async () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
+
+const topics = [
+  "Talk about your favorite food",
+  "Talk about your morning routine",
+  "Talk about your favorite movie",
+  "Talk about your childhood",
+  "Talk about your favorite place",
+  "Talk about your hobbies",
+];
+
+const todayTopic =
+  topics[new Date().getDate() % topics.length];
 
 // ---------------- LOGIN SCREEN ----------------
 if (!token) {
@@ -247,6 +262,20 @@ if (!token) {
         <button onClick={logout}>Logout</button>
       </div>
 
+      <div
+      style={{
+        backgroundColor: "#1e293b",
+        color: "white",
+        padding: "12px",
+        borderRadius: "10px",
+        marginBottom: "12px",
+        textAlign: "center",
+        fontWeight: "bold",
+      }}
+      >
+        Today's Topic: {todayTopic}
+      </div>
+
       <div style={{ textAlign: "center", marginBottom: "10px" }}>
         <label>
           <input
@@ -256,6 +285,17 @@ if (!token) {
             style={{ marginRight: "6px" }}
           />
           Voice Replies
+        </label>
+      </div>
+      <div style={{ textAlign: "center", marginBottom: "10px" }}>
+        <label style={{ fontSize: "16px", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={correctMe}
+            onChange={() => setCorrectMe(!correctMe)}
+            style={{ marginRight: "6px" }}
+          />
+          Correct me!
         </label>
       </div>
       <div style={{ textAlign: "center", marginBottom: "10px" }}>
