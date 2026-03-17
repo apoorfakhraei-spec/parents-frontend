@@ -9,6 +9,7 @@ function App() {
   const [chat, setChat] = useState([]);
   const [listening, setListening] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [showPersian, setShowPersian] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const chatEndRef = useRef(null);
@@ -254,6 +255,17 @@ if (!token) {
             style={{ marginRight: "6px" }}
           />
           Voice Replies
+        </label>
+      </div>
+      <div style={{ textAlign: "center", marginBottom: "10px" }}>
+        <label style={{ fontSize: "16px", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={showPersian}
+            onChange={() => setShowPersian(!showPersian)}
+            style={{ marginRight: "6px" }}
+          />
+          ترجمه ی فارسی
         </label>
       </div>
 
