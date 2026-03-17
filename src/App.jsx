@@ -76,6 +76,7 @@ const sendMessage = async () => {
       body: JSON.stringify({
         message: message,
         history: newChat,
+        persian: showPersian
       }),
     });
 
