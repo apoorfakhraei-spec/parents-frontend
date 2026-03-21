@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 
 function App() {
+  const [hasStarted, setHasStarted] = useState(false);
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -137,6 +138,55 @@ const sendMessage = async () => {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
+
+  useEffect(() => {
+    if (!token) return;
+    if (chat.length > 0) return;
+    if (hasStarted) return;
+
+    const startConversation = async () => {
+      setHasStarted(true);
+
+      const starter = `Let's talk about this: ${todayTopic}. Ask me a simple question to start the conversation.`;
+
+      setLoading(true);
+
+      try {
+        const res = await fetch(`${API_BASE}/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            message: starter,
+            history: [],
+            correct: correctMe,
+            persian: showPersian,
+          }),
+        });
+
+        const data = await res.json();
+
+        const firstMessage = {
+          role: "assistant",
+          content: data.reply,
+        };
+
+        setChat([firstMessage]);
+
+        const englishOnly = data.reply.split("\n")[0];
+        speak(englishOnly);
+
+      } catch (err) {
+        console.error("Auto-start failed");
+      }
+
+      setLoading(false);
+    };
+
+    startConversation();
+  }, [token]);
 
 const topics = [
   "Talk about your favorite food",
