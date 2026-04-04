@@ -84,8 +84,7 @@ const sendMessage = async () => {
     });
 
     if (res.status === 401) {
-      alert("Session expired. Please login again.");
-      logout();
+      console.warn("Unauthorized - keeping user logged in");
       return;
     }
 
