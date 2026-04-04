@@ -147,7 +147,19 @@ const sendMessage = async () => {
     const startConversation = async () => {
       setHasStarted(true);
 
-      const starter = `Let's talk about this: ${todayTopic}`;
+    const starter = `
+    You are a friendly English teacher.
+
+    Start the conversation with a greeting.
+    Introduce the topic naturally.
+    Ask the user a simple question to begin the conversation.
+
+    Topic: ${todayTopic}
+
+    Do NOT answer the question yourself.
+    Do NOT assume the user already responded.
+    Just start the conversation and wait for the user's answer.
+    `;
 
       setLoading(true);
 
