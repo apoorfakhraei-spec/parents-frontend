@@ -150,10 +150,6 @@ const sendMessage = async () => {
 
       setLoading(true);
 
-      const instruction = showPersian
-        ? "Please include Persian translation."
-        : "Do not include Persian translation.";
-
       try {
         const res = await fetch(`${API_BASE}/chat`, {
           method: "POST",
@@ -162,8 +158,8 @@ const sendMessage = async () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            message: instruction + "\n" + message,
-            history: newChat,
+            message: message,
+            history: newChat.filter(msg => msg.role === "user"),
             correct: correctMe,
             persian: showPersian
           }),
