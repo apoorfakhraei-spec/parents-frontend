@@ -13,6 +13,7 @@ function App() {
   const [showPersian, setShowPersian] = useState(true);
   const [correctMe, setCorrectMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [todayTopic, setTodayTopic] = useState("");
 
   const chatEndRef = useRef(null);
 
@@ -140,13 +141,13 @@ const sendMessage = async () => {
 
   useEffect(() => {
     if (!token) return;
+    if (!todayTopic) return;   // ✅ ADD THIS
     if (chat.length > 0) return;
-    if (hasStarted) return;
 
     const startConversation = async () => {
       setHasStarted(true);
 
-      const starter = `Let's talk about this: ${todayTopic}. Ask me a simple question to start the conversation.`;
+      const starter = `Let's talk about this: ${todayTopic}`;
 
       setLoading(true);
 
@@ -158,8 +159,8 @@ const sendMessage = async () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            message: message,
-            history: newChat.filter(msg => msg.role === "user"),
+            message: starter,
+            history: [],
             correct: correctMe,
             persian: showPersian
           }),
@@ -185,19 +186,38 @@ const sendMessage = async () => {
     };
 
     startConversation();
-  }, [token]);
+  }, [token, todayTopic]);
 
-const topics = [
-  "Talk about your favorite food",
-  "Talk about your morning routine",
-  "Talk about your favorite movie",
-  "Talk about your childhood",
-  "Talk about your favorite place",
-  "Talk about your hobbies",
-];
+  useEffect(() => {
+    if (!token) return;
+    if (todayTopic) return;
 
-const todayTopic =
-  topics[new Date().getDate() % topics.length];
+    const generateTopic = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            message: "Give me one simple conversation topic for an elderly English learner. Keep it very easy.",
+            history: [],
+            correct: false,
+            persian: false
+          }),
+        });
+
+        const data = await res.json();
+        setTodayTopic(data.reply);
+
+      } catch (err) {
+        console.error("Topic generation failed");
+      }
+    };
+
+    generateTopic();
+  }, [token, todayTopic]);
 
 // ---------------- LOGIN SCREEN ----------------
 if (!token) {
@@ -322,7 +342,7 @@ if (!token) {
         fontWeight: "bold",
       }}
       >
-        Today's Topic: {todayTopic}
+        Today's Topic: {todayTopic || "Loading topic..."}
       </div>
 
       <div style={{ textAlign: "center", marginBottom: "10px" }}>
