@@ -150,9 +150,14 @@ const sendMessage = async () => {
     const starter = `
     You are a friendly English teacher.
 
-    Start the conversation with a greeting.
-    Introduce the topic naturally.
-    Ask the user a simple question to begin the conversation.
+    You MUST use the topic below.
+
+    Start with a greeting.
+    Then introduce THIS topic clearly.
+    Then ask ONE simple question about THIS topic.
+
+    Do NOT change the topic.
+    Do NOT talk about food unless the topic is about food.
 
     Topic: ${todayTopic}
 
@@ -213,7 +218,7 @@ const sendMessage = async () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            message: "Give me one simple conversation topic for an elderly English learner. Keep it very easy.",
+            message: "Give me ONE random, simple, everyday conversation topic for an elderly English learner. Rules:- Do NOT repeat common topics like food every time - Keep it very easy - Keep it short (3–6 words) - Examples: 'morning routine', 'favorite place', 'shopping', 'family', 'walking outside', 'music', 'weekend plans' Only return the topic. No explanation.",
             history: [],
             correct: false,
             persian: false
@@ -221,7 +226,27 @@ const sendMessage = async () => {
         });
 
         const data = await res.json();
-        setTodayTopic(data.reply);
+        const fallbackTopics = [
+          "morning routine",
+          "favorite place",
+          "family",
+          "food",
+          "walking outside",
+          "music",
+          "weekend plans",
+          "shopping",
+          "weather today",
+          "friends",
+          "daily activities"
+        ];
+
+        if (!data.reply || data.reply.toLowerCase().includes("food")) {
+          const random =
+            fallbackTopics[Math.floor(Math.random() * fallbackTopics.length)];
+          setTodayTopic(random);
+        } else {
+          setTodayTopic(data.reply);
+        }
 
       } catch (err) {
         console.error("Topic generation failed");
