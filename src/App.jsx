@@ -41,9 +41,11 @@ function App() {
     localStorage.removeItem("token");
     setToken(null);
     setChat([]);
+    setTodayTopic("");
+    setHasStarted(false);
   };
 
-  // ---------------- SPEECH SYNTHESIS ----------------
+  // ---------------- SPEECH ----------------
   const speak = (text) => {
     if (!voiceMode) return;
 
@@ -51,160 +53,80 @@ function App() {
     utterance.lang = "en-US";
     utterance.rate = 0.9;
 
-    utterance.onend = () => {
-      startListening();
-    };
+    utterance.onend = () => startListening();
 
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
   };
 
   // ---------------- CHAT ----------------
-const sendMessage = async () => {
-  if (!message.trim() || loading) return;
+  const sendMessage = async () => {
+    if (!message.trim() || loading) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  const newChat = [...chat, { role: "user", content: message }];
-  setChat(newChat);
-  setMessage("");
+    const newChat = [...chat, { role: "user", content: message }];
+    setChat(newChat);
+    setMessage("");
 
-  try {
-    const res = await fetch(`${API_BASE}/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        message: message,
-        history: newChat, 
-        correct: correctMe,
-        persian: showPersian
-      }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          message: message,
+          history: newChat,
+          correct: correctMe,
+          persian: showPersian,
+        }),
+      });
 
-    if (res.status === 401) {
-      console.warn("Unauthorized - keeping user logged in");
-      return;
+      const data = await res.json();
+
+      const updatedChat = [
+        ...newChat,
+        { role: "assistant", content: data.reply },
+      ];
+
+      setChat(updatedChat);
+
+      speak(data.reply.split("\n")[0]);
+    } catch {
+      alert("Network error.");
     }
 
-    const data = await res.json();
-
-    const updatedChat = [
-      ...newChat,
-      { role: "assistant", content: data.reply },
-    ];
-
-    setChat(updatedChat);
-
-    const englishOnly = data.reply.split("\n")[0];
-    speak(englishOnly);
-
-  } catch (err) {
-    alert("Network error. Please try again.");
-  }
-
-  setLoading(false);
-};
+    setLoading(false);
+  };
 
   // ---------------- SPEECH TO TEXT ----------------
   const startListening = () => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      alert("Speech recognition not supported.");
-      return;
-    }
+    if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
-    recognition.interimResults = false;
 
     recognition.start();
     setListening(true);
 
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setMessage(transcript);
+    recognition.onresult = (e) => {
+      setMessage(e.results[0][0].transcript);
     };
 
-    recognition.onend = () => {
-      setListening(false);
-    };
+    recognition.onend = () => setListening(false);
   };
 
+  // ---------------- SCROLL ----------------
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat]);
 
-  useEffect(() => {
-    if (!token) return;
-    if (!todayTopic) return;   // ✅ ADD THIS
-    if (chat.length > 0) return;
-
-    const startConversation = async () => {
-      setHasStarted(true);
-
-    const starter = `
-    You are a friendly English teacher.
-
-    You MUST use the topic below.
-
-    Start with a greeting.
-    Then introduce THIS topic clearly.
-    Then ask ONE simple question about THIS topic.
-
-    Do NOT change the topic.
-    Do NOT talk about food unless the topic is about food.
-
-    Topic: ${todayTopic}
-
-    Do NOT answer the question yourself.
-    Do NOT assume the user already responded.
-    Just start the conversation and wait for the user's answer.
-    `;
-
-      setLoading(true);
-
-      try {
-        const res = await fetch(`${API_BASE}/chat`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            message: starter,
-            history: [],
-            correct: correctMe,
-            persian: showPersian
-          }),
-        });
-
-        const data = await res.json();
-
-        const firstMessage = {
-          role: "assistant",
-          content: data.reply,
-        };
-
-        setChat([firstMessage]);
-
-        const englishOnly = data.reply.split("\n")[0];
-        speak(englishOnly);
-
-      } catch (err) {
-        console.error("Auto-start failed");
-      }
-
-      setLoading(false);
-    };
-
-    startConversation();
-  }, [token, todayTopic]);
-
+  // ---------------- GENERATE TOPIC ----------------
   useEffect(() => {
     if (!token) return;
     if (todayTopic) return;
@@ -218,37 +140,53 @@ const sendMessage = async () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            message: "Give me ONE random, simple, everyday conversation topic for an elderly English learner. Rules:- Do NOT repeat common topics like food every time - Keep it very easy - Keep it short (3–6 words) - Examples: 'morning routine', 'favorite place', 'shopping', 'family', 'walking outside', 'music', 'weekend plans' Only return the topic. No explanation.",
+            message: `
+Give ONE random topic.
+
+Rules:
+- ONLY 2 to 4 words
+- NO explanation
+- NOT food
+
+Examples:
+morning walk
+family time
+watching TV
+
+Return ONLY the topic.
+            `,
             history: [],
             correct: false,
-            persian: false
+            persian: false,
           }),
         });
 
         const data = await res.json();
+
+        let topic = data.reply?.trim().toLowerCase();
+
+        topic = topic.replace(/[".]/g, "");
+
         const fallbackTopics = [
           "morning routine",
-          "favorite place",
           "family",
-          "food",
           "walking outside",
           "music",
           "weekend plans",
           "shopping",
-          "weather today",
+          "weather",
           "friends",
-          "daily activities"
         ];
 
-        if (!data.reply || data.reply.toLowerCase().includes("food")) {
-          const random =
-            fallbackTopics[Math.floor(Math.random() * fallbackTopics.length)];
-          setTodayTopic(random);
-        } else {
-          setTodayTopic(data.reply);
+        if (!topic || topic.includes("food") || topic.split(" ").length > 5) {
+          topic =
+            fallbackTopics[
+              Math.floor(Math.random() * fallbackTopics.length)
+            ];
         }
 
-      } catch (err) {
+        setTodayTopic(topic);
+      } catch {
         console.error("Topic generation failed");
       }
     };
@@ -256,242 +194,91 @@ const sendMessage = async () => {
     generateTopic();
   }, [token, todayTopic]);
 
-// ---------------- LOGIN SCREEN ----------------
-if (!token) {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#111",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
-      <div
-        style={{
-          width: "420px",
-          padding: "40px",
-          borderRadius: "16px",
-          backgroundColor: "#1e1e1e",
-          textAlign: "center",
-          boxShadow: "0 8px 30px rgba(0,0,0,0.5)",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "34px",
-            color: "#ffffff",
-            marginBottom: "18px",
-          }}
-        >
-          English Practice
-        </h1>
+  // ---------------- AUTO START ----------------
+  useEffect(() => {
+    if (!token || !todayTopic || hasStarted || chat.length > 0) return;
 
-        <p
-          style={{
-            fontSize: "20px",
-            color: "#dddddd",
-            marginBottom: "35px",
-          }}
-        >
-          Login to start practicing English
-        </p>
+    const startConversation = async () => {
+      setHasStarted(true);
+      setLoading(true);
 
-        <input
-          autoFocus
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "16px",
-            fontSize: "18px",
-            fontWeight: "600",
-            marginBottom: "18px",
-            borderRadius: "10px",
-            border: "1px solid #444",
-            backgroundColor: "#2a2a2a",
-            color: "white",
-          }}
-        />
+      try {
+        const res = await fetch(`${API_BASE}/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            message: `
+You MUST follow the topic.
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleLogin();
-          }}
-          style={{
-            width: "100%",
-            padding: "16px",
-            fontSize: "18px",
-            fontWeight: "600",
-            marginBottom: "30px",
-            borderRadius: "10px",
-            border: "1px solid #444",
-            backgroundColor: "#2a2a2a",
-            color: "white",
-          }}
-        />
+Start with greeting.
+Say the topic.
+Ask ONE simple question.
 
-        <button
-          onClick={handleLogin}
-          style={{
-            width: "100%",
-            padding: "18px",
-            fontSize: "20px",
-            fontWeight: "bold",
-            backgroundColor: "#2563eb",
-            color: "white",
-            border: "none",
-            borderRadius: "12px",
-            cursor: "pointer",
-          }}
-        >
-          Login
-        </button>
+Do NOT change topic.
+
+Topic: ${todayTopic}
+            `,
+            history: [],
+            correct: correctMe,
+            persian: showPersian,
+          }),
+        });
+
+        const data = await res.json();
+
+        setChat([{ role: "assistant", content: data.reply }]);
+
+        speak(data.reply.split("\n")[0]);
+      } catch {
+        console.error("Auto-start failed");
+      }
+
+      setLoading(false);
+    };
+
+    startConversation();
+  }, [token, todayTopic, hasStarted, chat.length]);
+
+  // ---------------- LOGIN UI ----------------
+  if (!token) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 100 }}>
+        <div>
+          <h2>Login</h2>
+          <input placeholder="Username" onChange={(e) => setUsername(e.target.value)} />
+          <input type="password" onChange={(e) => setPassword(e.target.value)} />
+          <button onClick={handleLogin}>Login</button>
+        </div>
       </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   // ---------------- CHAT UI ----------------
   return (
-    <div style={{ maxWidth: "680px", width: "95%", margin: "40px auto", padding: "20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h2>English Practice</h2>
-        <button onClick={logout}>Logout</button>
-      </div>
+    <div style={{ maxWidth: 600, margin: "auto" }}>
+      <h2>English Practice</h2>
+      <button onClick={logout}>Logout</button>
 
-      <div
-      style={{
-        backgroundColor: "#1e293b",
-        color: "white",
-        padding: "12px",
-        borderRadius: "10px",
-        marginBottom: "12px",
-        textAlign: "center",
-        fontWeight: "bold",
-      }}
-      >
-        Today's Topic: {todayTopic || "Loading topic..."}
-      </div>
-
-      <div style={{ textAlign: "center", marginBottom: "10px" }}>
-        <label>
-          <input
-            type="checkbox"
-            checked={voiceMode}
-            onChange={() => setVoiceMode(!voiceMode)}
-            style={{ marginRight: "6px" }}
-          />
-          Voice Replies
-        </label>
-      </div>
-      <div style={{ textAlign: "center", marginBottom: "10px" }}>
-        <label style={{ fontSize: "16px", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={correctMe}
-            onChange={() => setCorrectMe(!correctMe)}
-            style={{ marginRight: "6px" }}
-          />
-          Correct me!
-        </label>
-      </div>
-      <div style={{ textAlign: "center", marginBottom: "10px" }}>
-        <label style={{ fontSize: "16px", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={showPersian}
-            onChange={() => setShowPersian(!showPersian)}
-            style={{ marginRight: "6px" }}
-          />
-          ترجمه ی فارسی
-        </label>
-      </div>
-
-      <div
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: "12px",
-          padding: "20px",
-          height: "500px",
-          fontSize: "18px",
-          overflowY: "auto",
-          marginBottom: "15px",
-          backgroundColor: "#f9f9f9",
-        }}
-      >
-        {chat.map((msg, index) => {
-          const isUser = msg.role === "user";
-
-          return (
-            <div
-              key={index}
-              style={{
-                display: "flex",
-                justifyContent: isUser ? "flex-end" : "flex-start",
-                marginBottom: "10px",
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: "75%",
-                  padding: "14px 18px",
-                  borderRadius: "18px",
-                  fontSize: "18px",
-                  lineHeight: "1.4",
-                  backgroundColor: isUser ? "#2563eb" : "#e5e5ea",
-                  color: isUser ? "white" : "black",
-                }}
-              >
-                {msg.content}
-              </div>
-            </div>
-          );
-        })}
-
+      <div style={{ height: 400, overflowY: "auto" }}>
+        {chat.map((msg, i) => (
+          <div key={i} style={{ textAlign: msg.role === "user" ? "right" : "left" }}>
+            {msg.content}
+          </div>
+        ))}
         <div ref={chatEndRef} />
       </div>
 
-      <div style={{ display: "flex", alignItems: "center" }}>
-        <input
-          style={{ flex: 1, padding: "10px" }}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type or use mic..."
-          onKeyDown={(e) => {
-            if (e.key === "Enter") sendMessage();
-          }}
-        />
+      <input
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+      />
 
-        <button
-          onClick={startListening}
-          style={{
-            marginLeft: "10px",
-            padding: "10px",
-            backgroundColor: listening ? "red" : "#28a745",
-            color: "white",
-            border: "none",
-          }}
-        >
-          🎤
-        </button>
-
-        <button
-          style={{ marginLeft: "10px", padding: "10px" }}
-          onClick={sendMessage}
-          disabled={loading}
-        >
-          {loading ? "Thinking..." : "Send"}
-        </button>
-      </div>
+      <button onClick={startListening}>🎤</button>
+      <button onClick={sendMessage}>{loading ? "..." : "Send"}</button>
     </div>
   );
 }
