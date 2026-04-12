@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { scenarios } from "./scenarios";
 
 function App() {
   const [hasStarted, setHasStarted] = useState(false);
@@ -14,6 +15,7 @@ function App() {
   const [correctMe, setCorrectMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [todayTopic, setTodayTopic] = useState("");
+  const [selectedScenario, setSelectedScenario] = useState(null);
 
   const chatEndRef = useRef(null);
 
@@ -96,6 +98,47 @@ function App() {
       speak(data.reply.split("\n")[0]);
     } catch {
       alert("Network error.");
+    }
+
+    setLoading(false);
+  };
+
+  // ---------------- SCENARIO START ----------------
+  const startScenario = async (scenario) => {
+    setSelectedScenario(scenario);
+    setChat([]);
+    setHasStarted(false);
+
+    // Free chat → use existing topic system
+    if (scenario.id === "free") {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          message: scenario.prompt,
+          history: [],
+          correct: correctMe,
+          persian: showPersian,
+        }),
+      });
+
+      const data = await res.json();
+
+      setChat([{ role: "assistant", content: data.reply }]);
+
+      speak(data.reply.split("\n")[0]);
+      setHasStarted(true);
+    } catch {
+      alert("Failed to start scenario");
     }
 
     setLoading(false);
@@ -196,7 +239,7 @@ Return ONLY the topic.
 
   // ---------------- AUTO START ----------------
   useEffect(() => {
-    if (!token || !todayTopic || hasStarted || chat.length > 0) return;
+    if (!token || hasStarted || chat.length > 0 || !selectedScenario) return;
 
     const startConversation = async () => {
       setHasStarted(true);
@@ -256,10 +299,59 @@ Topic: ${todayTopic}
     );
   }
 
+  // ---------------- SCENARIO SELECTION ----------------
+  if (!selectedScenario) {
+    return (
+      <div style={{ maxWidth: 600, margin: "auto" }}>
+        <h2>Select a Situation</h2>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+          }}
+        >
+          {scenarios.map((s) => (
+            <div
+              key={s.id}
+              onClick={() => startScenario(s)}
+              style={{
+                height: 80,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px solid #ccc",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontSize: 18,
+                fontWeight: "bold",
+                background: "#f5f5f5",
+              }}
+            >
+              {s.title}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   // ---------------- CHAT UI ----------------
   return (
     <div style={{ maxWidth: 600, margin: "auto" }}>
       <h2>English Practice</h2>
+
+      <button
+        onClick={() => {
+          setSelectedScenario(null);
+          setChat([]);
+          setHasStarted(false);
+        }}
+      >
+        ← Back
+      </button>
+
       <button onClick={logout}>Logout</button>
 
       <div style={{ height: 400, overflowY: "auto" }}>
